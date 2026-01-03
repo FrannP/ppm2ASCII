@@ -140,7 +140,7 @@ void imageScaleDown(struct image *Image)
         Image->width = newWidth;
         Image->height = newHeight;
 
-        printf("ITERATIONS: %d\n", counter);
+        // printf("ITERATIONS: %d\n", counter);
         counter++;
     }
 }
@@ -175,4 +175,62 @@ void ppm2AsciiWrapper(char *fileName)
     imageScaleDown(&Image);
     outputToTerminal(&Image);
     free(Image.pixelData);
+}
+
+// - Extract ppm files from mp4 video
+// - Iterate over files from folder
+// - TODO: add buffer instead of folder read
+
+void video2Ascii(char *fileName)
+{
+    char ffmpegCommand[512];
+
+    snprintf(ffmpegCommand, sizeof(ffmpegCommand),
+             "ffmpeg -i \"%s\" Frames/output_%%04d.ppm",
+             fileName);
+    FILE *pipein = popen(ffmpegCommand, "r");
+    if (!pipein)
+    {
+        perror("popen failed");
+        return;
+    }
+    fflush(pipein);
+    pclose(pipein);
+    struct image Image;
+    char frameName[64];
+
+    for (int i = 1; i <= getFrameCount(); ++i)
+    {
+        snprintf(frameName, sizeof(frameName), "Frames/output_%04d.ppm", i);
+        readImage(frameName, &Image);
+        convertGrayscale(&Image);
+        imageScaleDown(&Image);
+        outputToTerminal(&Image);
+        free(Image.pixelData);
+        usleep(33000);
+        system("clear");
+    }
+}
+
+int getFrameCount()
+{
+    DIR *dp;
+    int counter = 0;
+    struct dirent *ep;
+    dp = opendir("./Frames");
+    if (dp != NULL)
+    {
+        while ((ep = readdir(dp)) != NULL)
+        {
+            counter++;
+        }
+
+        (void)closedir(dp);
+        return counter - 2;
+    }
+    else
+    {
+        perror("Couldn't open the directory");
+        return -1;
+    }
 }
